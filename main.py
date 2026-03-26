@@ -44,7 +44,7 @@ while True:
     while True:
         response = ollama.chat(model=MODEL, messages=messages)
         reply = response["message"]["content"]
-        print(f"<DEBUG>{reply}<DEBUG>")
+        # print(f"<DEBUG>{reply}<DEBUG>")
         messages.append({"role": "assistant", "content": reply})
         if reply.strip().startswith("FINISH:"):
             finish_message = reply.strip().split("FINISH:", 1)[1].strip()
