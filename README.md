@@ -1,12 +1,13 @@
-# Ollama Terminal Agent
+# MVP Terminal AI Agent
 
-A minimal, local AI agent that runs in your terminal. Powered by [Ollama](https://ollama.com), it lets a local LLM reason through tasks and execute shell commands on your Ubuntu machine — with your approval every step of the way.
+A minimal terminal agent that can use either a local LLM (via [Ollama](https://ollama.com)) or Claude via the [Anthropic API](https://www.anthropic.com/). It streams command output and asks for confirmation before executing anything.
 
 ---
 
 ## Features
 
-- Runs entirely locally via Ollama — no cloud API keys needed
+- Local execution via Ollama (no cloud keys needed)
+- Claude API support (requires `ANTHROPIC_API_KEY`)
 - Confirms every command with the user before executing
 - Streams live command output as it runs
 - Fully configurable via markdown prompt and skill files
@@ -16,9 +17,10 @@ A minimal, local AI agent that runs in your terminal. Powered by [Ollama](https:
 
 ## Requirements
 
-- Ubuntu Linux
-- Python 3.8+
-- [Ollama](https://ollama.com) installed and running
+- Ubuntu Linux (targeted)
+- Python (see `pyproject.toml`)
+- Ollama installed and running (only needed for local models)
+- For Claude models: an Anthropic API key (`ANTHROPIC_API_KEY`)
 
 ---
 
@@ -32,10 +34,13 @@ A minimal, local AI agent that runs in your terminal. Powered by [Ollama](https:
 
 2. **Install dependencies**
    ```bash
-   pip install ollama
+   uv sync
    ```
 
-3. **Pull a model**
+3. **Pull a model (Ollama mode only)**
+
+   If you are using a local model (i.e., `MODEL` does not start with `claude-`):
+
    ```bash
    ollama pull mistral-nemo:12b
    ```
@@ -48,9 +53,8 @@ A minimal, local AI agent that runs in your terminal. Powered by [Ollama](https:
 ---
 
 ## Usage
-
 ```bash
-python agent.py
+uv run main.py
 ```
 
 The agent will prompt you for input. For each command the model wants to run, you will be asked to confirm before it executes:
@@ -82,20 +86,34 @@ The agent uses a structured format defined in `agent.md`:
 .
 ├── main.py       # Main agent loop
 ├── agent.md       # System prompt
-└── SKILL.md       # Skill definitions
+├── SKILL.md       # Skill definitions
+└── .env           # Optional env vars (e.g., ANTHROPIC_API_KEY, MODEL)
 ```
 
 ---
 
 ## Configuration
+The agent picks the backend based on `MODEL`:
+- `MODEL` starts with `claude-` -> uses Claude (Anthropic API)
+- otherwise -> uses the local Ollama backend
 
-Change the model by editing this line in `agent.py`:
+`MODEL` can be set either by editing `MODEL = ...` in `main.py` or by creating a `.env` file in this folder.
 
-```python
-MODEL = "mistral-nemo:12b"
+### `.env` (recommended)
+
+Create `./.env`:
+
+```bash
+# Claude mode:
+MODEL=claude-haiku-4-5
+ANTHROPIC_API_KEY=your_key_here
 ```
 
-Any model available via `ollama list` can be used.
+### Local Ollama mode
+
+```bash
+MODEL=qwen3:8b
+```
 
 ---
 
