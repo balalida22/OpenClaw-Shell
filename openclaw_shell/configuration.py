@@ -10,3 +10,5 @@ class Config:
     finish_prefix: str = "FINISH:"
     command_key: str = "COMMAND:"
     verbose: bool = True
+    think: bool = True
+    stylize_with_colorama: bool = True

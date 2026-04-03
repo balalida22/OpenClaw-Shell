@@ -11,8 +11,10 @@ import os
 import subprocess
 from typing import Any
 
+import asyncio
 import anthropic
 import ollama
+import colorama
 
 from .configuration import Config
 
@@ -25,20 +27,55 @@ def _is_claude_model(model: str) -> bool:
     return model.startswith("claude-")
 
 
-def _chat_with_ollama(model: str, chat_messages: list[dict[str, str]]) -> dict[str, Any]:
+def _chat_with_ollama(chat_messages: list[dict[str, str]], config: Config) -> dict[str, Any]:
     response: dict[str, Any] = ollama.chat(
-        model=model,
+        model=config.model,
         messages=chat_messages,
         # options={"temperature": 0.1},
-        think=True,
+        think=config.think,
     )
     return {
         "reply": response["message"]["content"],
         "prompt_tokens": response.get("prompt_eval_count"),
     }
 
+async def _stream_chat_with_ollama(chat_messages: list[dict[str, str]], config: Config) -> dict[str, Any]:
+    reply = ""
+    prompt_tokens = 0
+    is_thinking = config.think
 
-def _chat_with_claude(model: str, chat_messages: list[dict[str, str]]) -> dict[str, Any]:
+    if is_thinking:
+        if config.stylize_with_colorama:
+            print(colorama.Style.DIM, end="")
+        print("Thinking:")
+
+    async for part in await ollama.AsyncClient().chat(
+        model=config.model,
+        messages=chat_messages,
+        # options={"temperature": 0.1},
+        think=config.think,
+        stream=True
+    ):
+        reply += part["message"]["content"]
+        if part.get("prompt_eval_count") is int:
+            prompt_tokens += part.get("prompt_eval_count")
+        if is_thinking and "thinking" in part["message"]:
+            print(part["message"]["thinking"], end="", flush=True)
+        elif is_thinking:
+            is_thinking = False
+            if config.stylize_with_colorama:
+                print(colorama.Style.RESET_ALL)
+                print()
+        else:
+            # TODO: the first token might have some characters missing. Fix it.
+            print(part["message"]["content"], end="", flush=True)
+    print()
+    return {
+        "reply": reply,
+        "prompt_tokens": prompt_tokens,
+    }
+
+def _chat_with_claude(chat_messages: list[dict[str, str]], config: Config) -> dict[str, Any]:
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
         raise RuntimeError(
@@ -57,7 +94,7 @@ def _chat_with_claude(model: str, chat_messages: list[dict[str, str]]) -> dict[s
 
     client = anthropic.Anthropic(api_key=api_key)
     kwargs: dict[str, Any] = {
-        "model": model,
+        "model": config.model,
         "messages": non_system_messages,
         "max_tokens": 1024,
     }
@@ -72,11 +109,11 @@ def _chat_with_claude(model: str, chat_messages: list[dict[str, str]]) -> dict[s
     return {"reply": reply_text, "prompt_tokens": input_tokens}
 
 
-def chat_with_model(model: str, chat_messages: list[dict[str, str]]) -> dict[str, Any]:
+def chat_with_model(chat_messages: list[dict[str, str]], config: Config) -> dict[str, Any]:
     """Call the correct backend based on the model name."""
-    if _is_claude_model(model):
-        return _chat_with_claude(model, chat_messages)
-    return _chat_with_ollama(model, chat_messages)
+    if _is_claude_model(config.model):
+        return _chat_with_claude(chat_messages, config)
+    return asyncio.run(_stream_chat_with_ollama(chat_messages, config))
 
 def load_system_prompt(config: Config):
     system_prompt = _load_text("agent.md", config) + _load_text("SKILL.md", config)
@@ -91,9 +128,21 @@ def truncate_output(output: str, max_chars: int) -> str:
 
 
 def confirm_and_run(command: str, config: Config) -> str:
-    choice = input(f"\n[Run Command?] {command} [y/N] ").strip().lower()
+    msg = (
+        colorama.Fore.YELLOW
+        + "\n[Run Command?] "
+        + colorama.Fore.CYAN
+        + command
+        + colorama.Style.RESET_ALL
+        + colorama.Fore.YELLOW
+        + " [y/N] "
+        + colorama.Style.RESET_ALL
+    ) if config.stylize_with_colorama else f"\n[Run Command?] {command} [y/N] "
+    choice = input(msg).strip().lower()
     if choice != "y":
-        return "User chose not to execute the command."
+        msg = (colorama.Fore.YELLOW + "Please give a reason: " + colorama.Style.RESET_ALL) if config.stylize_with_colorama else "Please give a reason: "
+        reason = input(msg).strip().lower()
+        return f"User chose not to execute the command. Reason: {'unspecified' if reason == '' else reason}."
     process = subprocess.Popen(
         command,
         shell=True,

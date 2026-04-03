@@ -30,13 +30,13 @@ if __name__ == "__main__":
             print("Goodbye!")
             break
         if user_input.lower() == "reset":
-            tokens_used, messages = reset()
+            tokens_used, messages = reset(config)
             continue
         if not user_input:
             continue
         messages.append({"role": "user", "content": user_input})
         while True:
-            response = chat_with_model(config.model, messages)
+            response = chat_with_model(messages, config)
             tokens_used = response.get("prompt_tokens", tokens_used) or tokens_used
             reply = response.get("reply", "")
             # print(f"<DEBUG> {reply} <DEBUG>\n")
@@ -49,8 +49,14 @@ if __name__ == "__main__":
 
             if config.command_key in reply:
                 command = reply.strip().split(config.command_key, 1)[1].strip()
-                command_result = confirm_and_run(command=command)
+                command_result = confirm_and_run(command=command, config=config)
                 messages.append({"role": "user", "content": f"EXECUTED {command_result}"})
             else:
-                messages.append({"role": "user", "content": "Invalid format. You must reply with either COMMAND: <cmd> or FINISH: <msg>. Try again."})
+                messages.append({
+                    "role": "user",
+                    "content": """Invalid format.
+                        You must reply with one of either `COMMAND: <cmd>` or `FINISH: <msg>`.
+                        The word `FINISH` or `COMMAND` should be capitalized and the colon must not be dropped.
+                        Try again."""
+                })
         # print(messages)
