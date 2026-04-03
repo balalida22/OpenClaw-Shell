@@ -20,11 +20,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="MVP AI agent shell")
     parser.add_argument("-m", "--model", help="The name of the model to chat with.", )
     args = parser.parse_args()
-    print("Using model", args.model)
+    model = args.model or MODEL
+    print("Using model", model)
 
     # Start a session
-    # s = Session(model=args.model, config=config)
-    s = Session.load_from_file(BASE_DIR / "runtime" / "sessions" / "e7b84b5d-3423-49bb-8965-bac3c0631063.json")
+    s = Session(model=model, config=config)
+    # s = Session.load_from_file(BASE_DIR / "runtime" / "sessions" / "e7b84b5d-3423-49bb-8965-bac3c0631063.json")
 
     print("[Commands: 'exit' to quit, 'reset' to clear history]")
     while True:

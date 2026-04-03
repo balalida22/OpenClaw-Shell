@@ -1,5 +1,6 @@
 from uuid import UUID, uuid4
 from dataclasses import dataclass
+from pathlib import Path
 import os
 import json
 from typing import Any, Self
@@ -19,6 +20,9 @@ class Session:
         self.config = config
         self.id = id
         self.model = model
+        # Ensure runtime paths exist on first run.
+        self.config.session_dir.mkdir(parents=True, exist_ok=True)
+        self.config.workspace_dir.mkdir(parents=True, exist_ok=True)
         self.session_file = str(config.session_dir / (str(self.id) + ".json"))
         os.chdir(self.config.workspace_dir)
         if messages is None or token_used is None:
@@ -53,6 +57,7 @@ class Session:
         self.save_to_file()
 
     def save_to_file(self):
+        Path(self.session_file).parent.mkdir(parents=True, exist_ok=True)
         with open(self.session_file, "w") as file:
             # TODO: Currently, the thinking processes are not stored in messages. Update this later.
             json.dump(
