@@ -7,7 +7,7 @@ from openclaw_shell import *
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=BASE_DIR / ".env")
 
-MODEL = os.getenv("MODEL", "qwen3:8b")
+MODEL = os.getenv("MODEL", "qwen3.5:9b")
 
 config = Config(
     base_dir=BASE_DIR,
